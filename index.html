@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aviação Brasileira — Leitura Executiva 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#000091;--purple:#6f166f;--teal:#00aabc;--red:#d71b3a;
+  --bg:#e6e8e9;--surface:#fff;--s1:#f4f5f6;
+  --bd:rgba(0,0,0,.09);--bd2:rgba(0,0,0,.16);
+  --text:#000;--t2:#333;--t3:#666;
+  --dom:#000091;--int:#00aabc;
+}
+html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+.app{display:flex;flex-direction:column;height:100vh;min-height:600px}
+
+/* HEADER */
+.hdr{background:var(--navy);color:#fff;padding:9px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hdr h1{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.hdr-meta{font-size:9px;color:rgba(255,255,255,.4);margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:20px}
+.hdr-kpis{display:flex;gap:20px}
+.hdr-kpi .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff;line-height:1}
+.hdr-kpi .l{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+.seg-row{display:flex;gap:10px}
+.seg-it{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.5)}
+.seg-dot{width:7px;height:7px;border-radius:50%}
+
+/* FILTER + STRIP BAR */
+.filter-bar{background:var(--surface);border-bottom:1.5px solid var(--bd2);display:flex;align-items:stretch;flex-shrink:0}
+.filter-section{display:flex;align-items:center;border-right:0.5px solid var(--bd)}
+.filter-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);padding:0 10px;white-space:nowrap;border-right:0.5px solid var(--bd)}
+.filter-btn{padding:7px 13px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--t3);border-bottom:2px solid transparent}
+.filter-btn:hover{background:var(--s1);color:var(--text)}
+.filter-btn.on{color:var(--navy);border-bottom-color:var(--navy);font-weight:700;background:var(--s1)}
+.month-strip{display:flex;flex:1;overflow:hidden}
+.mo-tab{flex:1;padding:6px 10px 5px;cursor:pointer;border-right:0.5px solid var(--bd);border-bottom:2px solid transparent;min-width:0}
+.mo-tab:last-child{border-right:none}
+.mo-tab.active{border-bottom-color:var(--navy);background:var(--s1)}
+.mo-tab:hover:not(.active){background:var(--s1)}
+.mo-tab.ytd{background:var(--navy)}
+.mo-tab.ytd.active{border-bottom-color:var(--purple)}
+.mo-tab.ytd *{color:#fff!important}
+.mo-tab.ytd .mint{color:var(--teal)!important}
+.mname{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.mpax{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap}
+.msub{font-size:9px;color:var(--t3);margin-top:2px;display:flex;gap:6px}
+.mlf{font-weight:600;color:var(--t2)}
+.mdom{color:var(--dom);font-weight:600}
+.mint{color:var(--int);font-weight:600}
+
+/* TOTALS */
+.totals-row{display:flex;gap:7px;padding:7px 18px;background:var(--surface);border-bottom:0.5px solid var(--bd);flex-shrink:0}
+.tot{padding:5px 10px;background:var(--s1);border-radius:3px;border-left:3px solid var(--bd2);flex:1}
+.tot.t-n{border-left-color:var(--navy)}.tot.t-p{border-left-color:var(--purple)}
+.tot.t-d{border-left-color:var(--dom)}.tot.t-i{border-left-color:var(--int)}
+.tot-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--t3);margin-bottom:2px}
+.tot-v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.tot-s{font-size:9px;color:var(--t3);margin-top:2px}
+
+/* BODY */
+.body{flex:1;display:grid;grid-template-columns:1fr 1fr 1.05fr;min-height:0;overflow:hidden}
+
+/* PANELS */
+.panel{overflow-y:auto;border-right:0.5px solid var(--bd);background:var(--surface);display:flex;flex-direction:column}
+.panel:last-child{border-right:none}
+.phdr{padding:7px 14px;border-bottom:0.5px solid var(--bd);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;background:var(--surface);position:sticky;top:0;z-index:2}
+.ptitle{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy)}
+.psub{font-size:9px;color:var(--t3)}
+
+/* TABLES */
+table{width:100%;border-collapse:collapse}
+th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--t3);padding:5px 8px;border-bottom:0.5px solid var(--bd2);text-align:right;white-space:nowrap;position:sticky;top:37px;background:var(--surface);z-index:1}
+th.tl{text-align:left}
+td{padding:4px 8px;border-bottom:0.5px solid var(--bd);vertical-align:middle;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border:none}
+tr:hover td{background:var(--s1)}
+.nr{text-align:right}
+
+/* RANK BADGE */
+.rnk{width:17px;height:17px;border-radius:50%;background:var(--bd);font-size:9px;font-weight:700;color:var(--t3);display:inline-flex;align-items:center;justify-content:center}
+.r1{background:var(--purple);color:#fff}.r2{background:#c0c4cc;color:#000}.r3{background:#c27c2a;color:#fff}
+
+/* ── AIRLINE LOGO LAYOUT ── */
+/* Logo ocupa célula própria, sem texto ao lado */
+.al-logo-cell{width:44px;text-align:center;padding-right:4px}
+.al-logo{width:38px;height:24px;object-fit:contain;border-radius:3px;display:block;margin:0 auto}
+.al-logo-fb{width:38px;height:24px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;letter-spacing:.02em;margin:0 auto}
+/* Nome fica na célula seguinte */
+.al-name{font-size:12px;font-weight:600}
+.al-sub{font-size:9px;color:var(--t3);margin-top:1px}
+
+/* SHARE BAR */
+.sb{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.sb-bg{height:3px;border-radius:2px;background:var(--bg);overflow:hidden;flex-shrink:0}
+.sb-fill{height:100%;border-radius:2px}
+.sb-v{font-size:10px;min-width:30px;text-align:right}
+
+/* LF PILL */
+.lf{display:inline-block;padding:1px 5px;border-radius:2px;font-size:10px;font-weight:700}
+.lf-hi{background:#d1fae5;color:#065f46}.lf-md{background:#dbeafe;color:#1e3a8a}
+.lf-lo{background:#fef9c3;color:#713f12}.lf-vlo{background:#fee2e2;color:#7f1d1d}
+
+/* AIRPORT */
+.ap-seg{display:flex;gap:1px;margin-top:2px;height:3px}
+.ap-d{background:var(--dom);border-radius:1px}.ap-i{background:var(--int);border-radius:1px}
+.di{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.di-d{font-size:9px;font-weight:600;color:var(--dom)}.di-i{font-size:9px;font-weight:600;color:var(--int)}
+
+/* RIGHT PANEL */
+.rpanel{overflow-y:auto;background:var(--surface);display:flex;flex-direction:column}
+.section{padding:10px 14px 12px;border-bottom:0.5px solid var(--bd)}
+.stitle{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin-bottom:7px}
+.chart-wrap{position:relative;height:128px}
+.leg{display:flex;gap:12px;margin-bottom:6px}
+.li{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2)}
+.ls{width:9px;height:9px;border-radius:2px}
+table.ctx th{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--t3);padding:4px 6px;border-bottom:0.5px solid var(--bd2);text-align:right;position:static;background:transparent;top:auto}
+table.ctx th.tl{text-align:left}
+table.ctx td{padding:3px 6px;border-bottom:0.5px solid var(--bd);font-size:11px;font-variant-numeric:tabular-nums}
+.active-mo td{background:var(--s1)}.active-mo td:first-child{color:var(--navy);font-weight:700}
+.footnote{font-size:9px;color:var(--t3);padding:6px 14px 8px;border-top:0.5px solid var(--bd);margin-top:auto}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3);font-size:12px;gap:8px}
+.spinner{width:16px;height:16px;border:2px solid var(--bd2);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="loading"><div class="spinner"></div>Carregando dados...</div>
+</div>
+
+<script>
+// ── AIRLINE MAP ─────────────────────────────────────────────
+const AL_MAP={
+  TAM:{iata:'JJ',name:'LATAM',sub:'JJ · TAM',color:'#d71b3a',txt:'#fff'},
+  GLO:{iata:'G3',name:'GOL',sub:'G3 · GLO',color:'#f2c900',txt:'#000'},
+  AZU:{iata:'AD',name:'Azul',sub:'AD · AZU',color:'#000091',txt:'#fff'},
+  LAN:{iata:'LA',name:'LATAM Cargo',sub:'LA · LAN',color:'#6f166f',txt:'#fff'},
+  TAP:{iata:'TP',name:'TAP',sub:'TP · TAP',color:'#00aabc',txt:'#fff'},
+  ARG:{iata:'AR',name:'Aerolíneas Arg.',sub:'AR · ARG',color:'#74acdf',txt:'#000'},
+  CMP:{iata:'CM',name:'Copa Airlines',sub:'CM · CMP',color:'#003087',txt:'#fff'},
+  AAL:{iata:'AA',name:'American Airlines',sub:'AA · AAL',color:'#b91c1c',txt:'#fff'},
+  JES:{iata:'T4',name:'Passaredo',sub:'T4 · JES',color:'#374151',txt:'#fff'},
+  AVA:{iata:'AV',name:'Avianca',sub:'AV · AVA',color:'#e30613',txt:'#fff'},
+  AFR:{iata:'AF',name:'Air France',sub:'AF · AFR',color:'#002157',txt:'#fff'},
+  JAT:{iata:'JU',name:'Air Serbia',sub:'JU · JAT',color:'#0e7490',txt:'#fff'},
+  UAL:{iata:'UA',name:'United Airlines',sub:'UA · UAL',color:'#1e3a5f',txt:'#fff'},
+  SKU:{iata:'H2',name:'Sky Airline',sub:'H2 · SKU',color:'#78350f',txt:'#fff'},
+  THY:{iata:'TK',name:'Turkish Airlines',sub:'TK · THY',color:'#e30a17',txt:'#fff'},
+  IBE:{iata:'IB',name:'Iberia',sub:'IB · IBE',color:'#d71920',txt:'#fff'},
+  FBZ:{iata:'FZ',name:'Flybondi',sub:'FZ · FBZ',color:'#f97316',txt:'#fff'},
+};
+function alInfo(c){return AL_MAP[c]||{iata:c,name:c,sub:c,color:'#9ca3af',txt:'#fff'};}
+function logoUrl(iata){return `https://content.airhex.com/content/logos/airlines_${iata}_100_100_r.png`;}
+
+// ── UTILS ───────────────────────────────────────────────────
+function nk(v){
+  if(v==null)return '—';
+  if(v>=1e6)return (v/1e6).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
+  if(v>=1e3)return Math.round(v/1e3).toLocaleString('pt-BR')+'k';
+  return Math.round(v).toLocaleString('pt-BR');
+}
+function pct(v,d=1){return v==null?'—':(v*100).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+'%';}
+function lfClass(v){return v>=.87?'lf-hi':v>=.82?'lf-md':v>=.78?'lf-lo':'lf-vlo';}
+function rnkClass(i){return i===0?'r1':i===1?'r2':i===2?'r3':'';}
+const ICAO2={SBGR:'GRU',SBSP:'CGH',SBGL:'GIG',SBBR:'BSB',SBCF:'CNF',SBKP:'VCP',
+  SBRF:'REC',SBSV:'SSA',SBPA:'POA',SBRJ:'SDU',SBCT:'CWB',SBFZ:'FOR',SBFL:'FLN',
+  SBBE:'BEL',SBGO:'GYN',SBVT:'VIX',SBMO:'MCZ',SBEG:'MAO',SBSG:'NAT',SBCY:'CGB'};
+
+// ── STATE ───────────────────────────────────────────────────
+let DB=null, activeMes='ytd', activeFilter='all', trendChart=null;
+
+// ── LOAD DATA ───────────────────────────────────────────────
+async function loadData(){
+  try{
+    const r=await fetch('./data/anacm26.json');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    DB=await r.json();
+    buildApp();
+  }catch(e){
+    document.getElementById('app').innerHTML=
+      `<div class="loading" style="flex-direction:column;gap:12px">
+        <div style="color:#d71b3a;font-weight:600">Erro ao carregar dados</div>
+        <div style="font-size:11px;color:var(--t3)">${e.message}</div>
+        <div style="font-size:10px;color:var(--t3)">Verifique se data/anacm26.json existe no repositório</div>
+      </div>`;
+  }
+}
+
+// ── BUILD APP SKELETON ───────────────────────────────────────
+function buildApp(){
+  document.getElementById('app').innerHTML=`
+    <div class="hdr">
+      <div>
+        <h1>Aviação Comercial — Mercado Brasil 2026</h1>
+        <div class="hdr-meta">ANAC · AnacM 26 · Grupo Pax · Atualizado: ${DB.meta.updated}</div>
+      </div>
+      <div class="hdr-right">
+        <div class="seg-row">
+          <div class="seg-it"><div class="seg-dot" style="background:#fff"></div>Doméstico</div>
+          <div class="seg-it"><div class="seg-dot" style="background:var(--teal)"></div>Internacional</div>
+        </div>
+        <div class="hdr-kpis">
+          <div class="hdr-kpi"><div class="v" id="hdr-pax">—</div><div class="l">PAX</div></div>
+          <div class="hdr-kpi"><div class="v" id="hdr-atm">—</div><div class="l">ATM</div></div>
+          <div class="hdr-kpi"><div class="v" id="hdr-lf">—</div><div class="l">LF</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <div class="filter-section">
+        <div class="filter-label">Segmento</div>
+        <button class="filter-btn on" id="btn-all" onclick="setFilter('all')">Todos</button>
+        <button class="filter-btn" id="btn-dom" onclick="setFilter('dom')">Doméstico</button>
+        <button class="filter-btn" id="btn-int" onclick="setFilter('int')">Internacional</button>
+      </div>
+      <div class="month-strip" id="monthStrip"></div>
+    </div>
+    <div class="totals-row" id="totalsRow"></div>
+    <div class="body">
+      <div class="panel">
+        <div class="phdr"><span class="ptitle">Top Airlines</span><span class="psub" id="al-sub">DEP · Grupo Pax</span></div>
+        <div><table>
+          <thead><tr>
+            <th class="tl" style="width:20px"></th>
+            <th class="tl" style="width:42px">Logo</th>
+            <th class="tl">Airline</th>
+            <th>PAX</th><th style="min-width:94px">Share</th><th>LF</th>
+          </tr></thead>
+          <tbody id="tbAirline"></tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <div class="phdr"><span class="ptitle">Top 15 Aeroportos</span><span class="psub" id="ap-sub">DEP</span></div>
+        <div><table>
+          <thead><tr>
+            <th class="tl" style="width:20px"></th>
+            <th class="tl" style="min-width:50px">Aero</th>
+            <th>PAX</th><th style="min-width:88px">Share</th><th>LF</th>
+            <th class="tl" style="padding-left:6px;min-width:88px">DOM · INT</th>
+          </tr></thead>
+          <tbody id="tbAirport"></tbody>
+        </table></div>
+      </div>
+      <div class="rpanel">
+        <div class="section">
+          <div class="stitle">Evolução Mensal — PAX (mil)</div>
+          <div class="leg">
+            <div class="li"><div class="ls" style="background:var(--dom)"></div>Doméstico</div>
+            <div class="li"><div class="ls" style="background:var(--int)"></div>Internacional</div>
+          </div>
+          <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="section">
+          <div class="stitle">Resumo Mensal</div>
+          <table class="ctx"><thead><tr>
+            <th class="tl">Mês</th><th class="nr">PAX</th>
+            <th class="nr" style="color:var(--dom)">DOM</th>
+            <th class="nr" style="color:var(--int)">INT</th>
+            <th class="nr">LF</th><th class="nr">ATM</th>
+          </tr></thead><tbody id="ctxTable"></tbody></table>
+        </div>
+        <div class="footnote">Fonte: ANAC · AnacM 26 · ${DB.meta.period} · DEP (airlines/mercado) · Aeroportos: DEP</div>
+      </div>
+    </div>`;
+  buildTrend();
+  render();
+}
+
+// ── FILTER ──────────────────────────────────────────────────
+function setFilter(f){
+  activeFilter=f;
+  ['all','dom','int'].forEach(x=>{
+    const el=document.getElementById('btn-'+x);
+    if(el)el.classList.toggle('on',x===f);
+  });
+  render();
+}
+
+// ── HELPERS ─────────────────────────────────────────────────
+function getTot(){
+  const t=DB.totals[activeMes];
+  if(activeFilter==='dom')return{...t,pax:t.dom,int:0,lf:t.dom>0?+(t.dom/(t.seats*t.dom/t.pax)).toFixed(4):0};
+  if(activeFilter==='int')return{...t,pax:t.int,dom:0,lf:t.int>0?+(t.int/(t.seats*t.int/t.pax)).toFixed(4):0};
+  return t;
+}
+function getAl(){
+  const list=(DB.airlines[activeMes]||DB.airlines.ytd).slice();
+  if(activeFilter==='dom') return list.filter(a=>a.dom>0).map(a=>{const tot=getTot();return{...a,pax:a.dom,share:tot.pax>0?+(a.dom/tot.pax).toFixed(4):0};}).sort((a,b)=>b.pax-a.pax);
+  if(activeFilter==='int') return list.filter(a=>a.int>0).map(a=>{const tot=getTot();return{...a,pax:a.int,share:tot.pax>0?+(a.int/tot.pax).toFixed(4):0};}).sort((a,b)=>b.pax-a.pax);
+  return list;
+}
+function getAp(){
+  const list=(DB.airports[activeMes]||DB.airports.ytd).slice();
+  if(activeFilter==='dom') return list.filter(a=>a.dom>0).map(a=>{const tot=getTot();return{...a,pax:a.dom,int:0,share:tot.pax>0?+(a.dom/tot.pax).toFixed(4):0};}).sort((a,b)=>b.pax-a.pax).slice(0,15);
+  if(activeFilter==='int') return list.filter(a=>a.int>0).map(a=>{const tot=getTot();return{...a,pax:a.int,dom:0,share:tot.pax>0?+(a.int/tot.pax).toFixed(4):0};}).sort((a,b)=>b.pax-a.pax).slice(0,15);
+  return list.slice(0,15);
+}
+
+// ── STRIP ────────────────────────────────────────────────────
+function buildStrip(){
+  const el=document.getElementById('monthStrip');
+  if(!el)return;
+  el.innerHTML='';
+  // YTD
+  const yt=DB.totals.ytd;
+  const ytEl=document.createElement('div');
+  ytEl.className='mo-tab ytd'+(activeMes==='ytd'?' active':'');
+  ytEl.innerHTML=`<div class="mname">YTD Jan–Mai</div><div class="mpax">${nk(yt.pax)}</div>
+    <div class="msub"><span class="mlf">${pct(yt.lf)} LF</span><span class="mdom">D ${nk(yt.dom)}</span><span class="mint">I ${nk(yt.int)}</span></div>`;
+  ytEl.onclick=()=>{activeMes='ytd';render();};
+  el.appendChild(ytEl);
+  // Monthly
+  const MSHORT={'2026-01':'Jan','2026-02':'Fev','2026-03':'Mar','2026-04':'Abr','2026-05':'Mai'};
+  DB.meta.months.forEach(m=>{
+    const t=DB.totals[m];
+    const div=document.createElement('div');
+    div.className='mo-tab'+(activeMes===m?' active':'');
+    div.innerHTML=`<div class="mname">${MSHORT[m]}-26</div><div class="mpax">${nk(t.pax)}</div>
+      <div class="msub"><span class="mlf">${pct(t.lf)} LF</span><span class="mdom">D ${nk(t.dom)}</span><span class="mint">I ${nk(t.int)}</span></div>`;
+    div.onclick=()=>{activeMes=m;render();};
+    el.appendChild(div);
+  });
+}
+
+// ── TOTALS ────────────────────────────────────────────────────
+function buildTotals(){
+  const t=getTot();
+  const MSHORT={'2026-01':'Jan','2026-02':'Fev','2026-03':'Mar','2026-04':'Abr','2026-05':'Mai'};
+  const label=activeMes==='ytd'?'Jan–Mai 2026':(MSHORT[activeMes]||activeMes)+'-26';
+  const hpax=document.getElementById('hdr-pax');
+  const hatm=document.getElementById('hdr-atm');
+  const hlf=document.getElementById('hdr-lf');
+  if(hpax)hpax.textContent=nk(t.pax);
+  if(hatm)hatm.textContent=nk(t.atm);
+  if(hlf)hlf.textContent=pct(t.lf);
+  const tr=document.getElementById('totalsRow');
+  if(!tr)return;
+  const seg=activeFilter==='dom'?'Doméstico':activeFilter==='int'?'Internacional':'Todos os segmentos';
+  tr.innerHTML=`
+    <div class="tot t-n"><div class="tot-l">PAX · ${label} · ${seg}</div><div class="tot-v">${nk(t.pax)}</div><div class="tot-s">${nk(t.atm)} ATM · ${nk(t.seats)} seats</div></div>
+    <div class="tot t-p"><div class="tot-l">Load Factor</div><div class="tot-v" style="color:var(--purple)">${pct(t.lf)}</div><div class="tot-s">Média ponderada</div></div>
+    <div class="tot t-d"><div class="tot-l">Doméstico</div><div class="tot-v" style="color:var(--dom)">${nk(t.dom)}</div><div class="tot-s">${t.pax?pct(t.dom/t.pax):'—'} do total</div></div>
+    <div class="tot t-i"><div class="tot-l">Internacional</div><div class="tot-v" style="color:var(--int)">${nk(t.int)}</div><div class="tot-s">${t.pax?pct(t.int/t.pax):'—'} do total</div></div>`;
+}
+
+// ── AIRLINES ─────────────────────────────────────────────────
+function buildAirlines(){
+  const list=getAl();
+  const tb=document.getElementById('tbAirline');
+  if(!tb)return;
+  const sub=document.getElementById('al-sub');
+  if(sub)sub.textContent='DEP · '+(activeFilter==='dom'?'Doméstico':activeFilter==='int'?'Internacional':'Grupo Pax');
+  if(!list.length){tb.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--t3)">Sem dados</td></tr>';return;}
+  const maxShare=list[0].share||.001;
+  tb.innerHTML=list.map((a,i)=>{
+    const info=alInfo(a.code);
+    const src=logoUrl(info.iata);
+    return `<tr>
+      <td style="width:20px;padding-right:2px"><span class="rnk ${rnkClass(i)}">${i+1}</span></td>
+      <td class="al-logo-cell">
+        <img class="al-logo" src="${src}" alt="${info.name}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'"
+          onload="this.nextElementSibling.style.display='none'">
+        <span class="al-logo-fb" style="display:none;background:${info.color};color:${info.txt}">${a.code.slice(0,3)}</span>
+      </td>
+      <td>
+        <div class="al-name">${info.name}</div>
+        <div class="al-sub">${info.sub}</div>
+      </td>
+      <td class="nr" style="font-weight:700">${nk(a.pax)}</td>
+      <td class="nr">
+        <div class="sb">
+          <div class="sb-bg" style="width:58px"><div class="sb-fill" style="width:${Math.min(a.share/maxShare*100,100).toFixed(0)}%;background:${info.color}"></div></div>
+          <span class="sb-v">${pct(a.share)}</span>
+        </div>
+      </td>
+      <td class="nr"><span class="lf ${lfClass(a.lf)}">${pct(a.lf)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── AIRPORTS ─────────────────────────────────────────────────
+function buildAirports(){
+  const list=getAp();
+  const tb=document.getElementById('tbAirport');
+  if(!tb)return;
+  const sub=document.getElementById('ap-sub');
+  if(sub)sub.textContent='DEP · '+(activeFilter==='dom'?'Doméstico':activeFilter==='int'?'Internacional':'Todos');
+  if(!list.length){tb.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--t3)">Sem dados</td></tr>';return;}
+  const maxPax=list[0].pax||1;
+  tb.innerHTML=list.map((a,i)=>{
+    const iata=ICAO2[a.icao]||a.icao;
+    const dw=a.pax>0?Math.round(a.dom/a.pax*48):0;
+    const iw=a.pax>0?Math.round(a.int/a.pax*48):0;
+    return `<tr>
+      <td style="width:20px;padding-right:2px"><span class="rnk ${rnkClass(i)}">${i+1}</span></td>
+      <td>
+        <div style="font-size:13px;font-weight:700">${iata}</div>
+        <div class="ap-seg"><div class="ap-d" style="width:${dw}px"></div>${a.int>0?`<div class="ap-i" style="width:${iw}px"></div>`:''}</div>
+      </td>
+      <td class="nr" style="font-weight:700">${nk(a.pax)}</td>
+      <td class="nr">
+        <div class="sb"><div class="sb-bg" style="width:58px"><div class="sb-fill" style="width:${Math.min(a.pax/maxPax*100,100).toFixed(0)}%;background:var(--navy)"></div></div><span class="sb-v">${pct(a.share)}</span></div>
+      </td>
+      <td class="nr"><span class="lf ${lfClass(a.lf)}">${pct(a.lf)}</span></td>
+      <td style="padding-left:6px">
+        <div class="di">
+          <span class="di-d">${nk(a.dom)}</span>
+          ${a.int>0?`<span class="di-i">${nk(a.int)}</span>`:''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CONTEXT TABLE ─────────────────────────────────────────────
+function buildCtx(){
+  const tb=document.getElementById('ctxTable');
+  if(!tb)return;
+  const MSHORT={'2026-01':'Jan','2026-02':'Fev','2026-03':'Mar','2026-04':'Abr','2026-05':'Mai'};
+  tb.innerHTML=DB.meta.months.map(m=>{
+    const t=DB.totals[m];
+    return `<tr class="${activeMes===m?'active-mo':''}">
+      <td>${MSHORT[m]}</td>
+      <td class="nr">${nk(t.pax)}</td>
+      <td class="nr" style="color:var(--dom)">${nk(t.dom)}</td>
+      <td class="nr" style="color:var(--int)">${nk(t.int)}</td>
+      <td class="nr"><span class="lf ${lfClass(t.lf)}">${pct(t.lf)}</span></td>
+      <td class="nr">${nk(t.atm)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── TREND CHART ───────────────────────────────────────────────
+function buildTrend(){
+  const canvas=document.getElementById('trendChart');
+  if(!canvas)return;
+  if(trendChart)trendChart.destroy();
+  const MSHORT={'2026-01':'Jan','2026-02':'Fev','2026-03':'Mar','2026-04':'Abr','2026-05':'Mai'};
+  trendChart=new Chart(canvas.getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:DB.meta.months.map(m=>MSHORT[m]),
+      datasets:[
+        {label:'DOM',data:DB.meta.months.map(m=>Math.round(DB.totals[m].dom/1000)),backgroundColor:'#000091',borderRadius:2,borderSkipped:'bottom'},
+        {label:'INT',data:DB.meta.months.map(m=>Math.round(DB.totals[m].int/1000)),backgroundColor:'#00aabc',borderRadius:2,borderSkipped:'bottom'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        title:c=>`${c[0].label}-26`,
+        label:c=>`${c.dataset.label}: ${c.raw.toLocaleString('pt-BR')}k`
+      }}},
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{font:{size:10},color:'#666'},border:{display:false}},
+        y:{stacked:true,grid:{color:'#e6e8e9',lineWidth:.5},ticks:{font:{size:10},color:'#666',callback:v=>v>=1000?(v/1000).toFixed(0)+'M':v+'k'},border:{display:false}}
+      }
+    }
+  });
+}
+
+function render(){
+  buildStrip();
+  buildTotals();
+  buildAirlines();
+  buildAirports();
+  buildCtx();
+}
+
+loadData();
+</script>
+</body>
+</html>
